@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Чашка Конвея</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Макет: узкая лабораторная панель приборов слева, справа доска как чашка Петри под стеклом */
+:root {
+  --bg: #e9ede8;
+  --panel: #f6f8f4;
+  --ink: #18201b;
+  --muted: #5d6a61;
+  --line: #cbd4cc;
+  --accent: #2346b8;
+  --accent-ink: #ffffff;
+  --board: #fbfcf9;
+  --grid: #e3e8e2;
+  --cell: #1d2f78;
+  --trail: #d9773a;
+  --danger: #b3261e;
+  --font-display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --font-body: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101413; --panel: #171c1a; --ink: #e6ece7; --muted: #94a198; --line: #2b332f;
+    --accent: #8ea8ff; --accent-ink: #0c1230; --board: #0a0d0c; --grid: #161b19;
+    --cell: #9fd0ff; --trail: #f0954f; --danger: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101413; --panel: #171c1a; --ink: #e6ece7; --muted: #94a198; --line: #2b332f;
+  --accent: #8ea8ff; --accent-ink: #0c1230; --board: #0a0d0c; --grid: #161b19;
+  --cell: #9fd0ff; --trail: #f0954f; --danger: #ff8a80; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 var(--font-body);
+  padding-inline: 16px;
+  padding-block: 16px;
+}
+.app {
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1500px;
+  margin: 0 auto;
+  min-height: 100%;
+}
+aside {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+h1 {
+  font: 700 22px/1.1 var(--font-display);
+  margin: 0;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+section { display: flex; flex-direction: column; gap: 8px; }
+.label {
+  font: 600 11px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.rule-input {
+  font: 600 22px/1 var(--font-mono);
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--board);
+  color: var(--ink);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+}
+.rule-input:focus { outline: none; border-color: var(--accent); }
+.rule-input.bad { border-color: var(--danger); }
+.rule-info { font-size: 13px; color: var(--muted); min-height: 2.9em; margin: 0; }
+.rule-info.bad { color: var(--danger); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: 500 12px/1 var(--font-body);
+  padding: 6px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > * { min-width: 0; }
+input[type="number"], select, textarea {
+  font: 14px var(--font-body);
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--board);
+  color: var(--ink);
+}
+input[type="number"] { width: 78px; font-family: var(--font-mono); }
+select { flex: 1; }
+textarea { width: 100%; min-height: 70px; font: 12px/1.4 var(--font-mono); resize: vertical; }
+input[type="range"] { flex: 1; accent-color: var(--accent); }
+button.btn {
+  font: 600 13px/1 var(--font-body);
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--board);
+  color: var(--ink);
+  cursor: pointer;
+}
+button.btn:hover { border-color: var(--accent); }
+button.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 92px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+.check input { accent-color: var(--accent); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.msg { font-size: 12px; color: var(--muted); margin: 0; min-height: 1.4em; }
+.msg.bad { color: var(--danger); }
+
+main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.speed { display: flex; gap: 8px; align-items: center; flex: 1 1 200px; font-size: 13px; color: var(--muted); }
+.stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--ink); font: 600 15px var(--font-mono); font-variant-numeric: tabular-nums; }
+.stage {
+  flex: 1;
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px;
+}
+canvas { display: block; touch-action: none; cursor: crosshair; background: var(--board); }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+kbd { font: 11px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+@media (max-width: 820px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  main { order: -1; }
+  .stage { min-height: 55vh; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>Чашка Конвея</h1>
+      <p class="sub">Игра «Жизнь» с правилами, которые пишешь ты сам</p>
+    </header>
+
+    <section>
+      <label class="label" for="rule">Правило</label>
+      <input id="rule" class="rule-input" value="B3/S23" spellcheck="false" autocomplete="off">
+      <p id="ruleInfo" class="rule-info"></p>
+      <div class="chips" id="presets"></div>
+    </section>
+
+    <section>
+      <span class="label">Соседи и края</span>
+      <div class="row">
+        <select id="hood" aria-label="Окрестность">
+          <option value="moore">Мура — 8 соседей</option>
+          <option value="vn">фон Неймана — 4 соседа</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="wrap" checked> Замкнуть края (доска-тор)</label>
+    </section>
+
+    <section>
+      <span class="label">Доска</span>
+      <div class="row">
+        <input type="number" id="bw" min="8" max="600" value="140" aria-label="Ширина">
+        <span class="mono">×</span>
+        <input type="number" id="bh" min="8" max="600" value="90" aria-label="Высота">
+        <button class="btn" id="resize">Изменить</button>
+      </div>
+      <div class="row">
+        <span class="mono" style="font-size:13px;color:var(--muted)">плотность</span>
+        <input type="range" id="density" min="1" max="90" value="28" aria-label="Плотность заполнения">
+        <span class="mono" id="densityOut" style="width:3.2em">28%</span>
+      </div>
+      <div class="row">
+        <button class="btn" id="random">Засеять случайно</button>
+        <button class="btn" id="clear">Очистить</button>
+      </div>
+    </section>
+
+    <section>
+      <span class="label">Узоры</span>
+      <div class="row">
+        <select id="pattern" aria-label="Узор"></select>
+        <button class="btn" id="place">Поставить</button>
+      </div>
+      <label class="label" for="rle" style="margin-top:4px">Свой узор в формате RLE</label>
+      <textarea id="rle" spellcheck="false" placeholder="x = 3, y = 3, rule = B3/S23&#10;bo$2bo$3o!"></textarea>
+      <div class="row"><button class="btn" id="loadRle">Загрузить на доску</button></div>
+      <p id="rleMsg" class="msg"></p>
+    </section>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <button class="btn primary" id="play">Пуск</button>
+      <button class="btn" id="step">Шаг</button>
+      <div class="speed">
+        <label for="speed">Скорость</label>
+        <input type="range" id="speed" min="1" max="60" value="15">
+        <span class="mono" id="speedOut" style="width:5.5em">15 пок/с</span>
+      </div>
+      <div class="stats">
+        <span>Поколение <b id="gen">0</b></span>
+        <span>Живых <b id="pop">0</b></span>
+      </div>
+    </div>
+    <div class="stage" id="stage"><canvas id="board" aria-label="Доска игры"></canvas></div>
+    <p class="hint">Рисуй мышью или пальцем прямо на доске: нажатие на пустую клетку рисует, на живую — стирает. <kbd>Пробел</kbd> — пуск и пауза, <kbd>→</kbd> — один шаг, <kbd>C</kbd> — очистить.</p>
+  </main>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+
+const PRESETS = [
+  ["Жизнь", "B3/S23"],
+  ["Высокая жизнь", "B36/S23"],
+  ["День и ночь", "B3678/S34678"],
+  ["Семена", "B2/S"],
+  ["Репликатор", "B1357/S1357"],
+  ["Лабиринт", "B3/S12345"],
+  ["Диамёба", "B35678/S5678"],
+  ["Коралл", "B3/S45678"],
+  ["Жизнь без смерти", "B3/S012345678"],
+  ["2×2", "B36/S125"],
+  ["Мозг Брайана", "B2/S/C3"],
+  ["Звёздные войны", "B2/S345/C4"],
+];
+
+const PATTERNS = [
+  ["Планер", "bo$2bo$3o!"],
+  ["Лёгкий корабль", "bo2bo$o$o3bo$4o!"],
+  ["R-пентамино", "b2o$2o$bo!"],
+  ["Желудь", "bo$3bo$2o2b3o!"],
+  ["Долгожитель (diehard)", "6bo$2o$bo3b3o!"],
+  ["Пульсар", "2b3o3b3o2$o4bobo4bo$o4bobo4bo$o4bobo4bo$2b3o3b3o2$2b3o3b3o$o4bobo4bo$o4bobo4bo$o4bobo4bo2$2b3o3b3o!"],
+  ["Планерное ружьё Госпера", "24bo$22bobo$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o$2o8bo3bob2o4bobo$10bo5bo7bo$11bo3bo$12b2o!"],
+];
+
+// ---------- состояние ----------
+let W = 140, H = 90;
+let grid = new Uint8Array(W * H), next = new Uint8Array(W * H);
+let rule = { b: [], s: [], c: 2, text: "B3/S23" };
+let moore = true, wrap = true;
+let gen = 0, running = false;
+let L, R, U, D;
+
+// ---------- правило ----------
+function parseRule(text, maxN) {
+  const t = text.toUpperCase().replace(/\s+/g, "");
+  if (!t) throw new Error("Правило пустое. Пример: B3/S23");
+  let b = null, s = null, c = 2;
+  const parts = t.split("/");
+  if (/[BS]/.test(t)) {
+    for (const p of parts) {
+      if (p === "") continue;
+      if (p[0] === "B") b = p.slice(1);
+      else if (p[0] === "S") s = p.slice(1);
+      else if (p[0] === "C" || p[0] === "G") c = Number(p.slice(1));
+      else if (/^\d+$/.test(p) && b !== null && s !== null) c = Number(p);
+      else throw new Error(`Не понял часть «${p}». Пиши так: B3/S23 или B2/S/C3`);
+    }
+  } else {
+    if (parts.length < 2 || parts.length > 3) throw new Error("Пиши как B3/S23, или в старом виде «выживание/рождение»: 23/3");
+    [s, b] = parts;
+    if (parts[2]) c = Number(parts[2]);
+  }
+  b = b || ""; s = s || "";
+  for (const [name, d] of [["рождения", b], ["выживания", s]]) {
+    if (!/^\d*$/.test(d)) throw new Error(`В условиях ${name} должны быть только цифры, а там «${d}»`);
+    for (const ch of d) if (+ch > maxN) throw new Error(`У клетки максимум ${maxN} соседей, а в условиях ${name} стоит ${ch}`);
+  }
+  if (!Number.isInteger(c) || c < 2 || c > 64) throw new Error("Число состояний C должно быть от 2 до 64");
+  const bArr = new Uint8Array(9), sArr = new Uint8Array(9);
+  for (const ch of b) bArr[+ch] = 1;
+  for (const ch of s) sArr[+ch] = 1;
+  return { b: bArr, s: sArr, c, bs: b, ss: s };
+}
+
+function listNums(str) {
+  const a = [...new Set(str.split(""))].sort();
+  if (a.length === 0) return null;
+  if (a.length === 1) return a[0];
+  return a.slice(0, -1).join(", ") + " или " + a[a.length - 1];
+}
+
+function describe(r) {
+  const born = listNums(r.bs), surv = listNums(r.ss);
+  let out = born ? `Рождение при ${born} ${pluralNb(r.bs)}. ` : "Новые клетки не рождаются. ";
+  out += surv ? `Выживание при ${surv}.` : "Ни одна клетка не выживает дольше поколения.";
+  if (r.c > 2) out += ` Умирающая клетка угасает ещё ${r.c - 2} ${pluralGen(r.c - 2)}.`;
+  return out;
+}
+function pluralNb(s) { const last = +s[s.length - 1]; return last === 1 ? "соседе" : "соседях"; }
+function pluralGen(n) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return "поколение";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return "поколения";
+  return "поколений";
+}
+
+function applyRule(text) {
+  const input = $("rule"), info = $("ruleInfo");
+  try {
+    const r = parseRule(text, moore ? 8 : 4);
+    rule = { ...r, text };
+    // клетки в состояниях выше нового предела просто гаснут
+    for (let i = 0; i < grid.length; i++) if (grid[i] >= rule.c) grid[i] = 0;
+    input.classList.remove("bad"); info.classList.remove("bad");
+    info.textContent = describe(r);
+    buildPalette(); render();
+    markPreset();
+    return true;
+  } catch (e) {
+    input.classList.add("bad"); info.classList.add("bad");
+    info.textContent = e.message;
+    return false;
+  }
+}
+
+function markPreset() {
+  const norm = s => s.toUpperCase().replace(/\s+/g, "");
+  for (const el of $("presets").children) el.classList.toggle("on", norm(el.dataset.rule) === norm(rule.text));
+}
+
+// ---------- доска ----------
+function buildNeighbours() {
+  L = new Int32Array(W); R = new Int32Array(W); U = new Int32Array(H); D = new Int32Array(H);
+  for (let x = 0; x < W; x++) {
+    L[x] = x > 0 ? x - 1 : (wrap ? W - 1 : -1);
+    R[x] = x < W - 1 ? x + 1 : (wrap ? 0 : -1);
+  }
+  for (let y = 0; y < H; y++) {
+    U[y] = y > 0 ? y - 1 : (wrap ? H - 1 : -1);
+    D[y] = y < H - 1 ? y + 1 : (wrap ? 0 : -1);
+  }
+}
+
+function step() {
+  const g = grid, nx = next, B = rule.b, S = rule.s, C = rule.c;
+  for (let y = 0; y < H; y++) {
+    const u = U[y], d = D[y], row = y * W, ru = u * W, rd = d * W;
+    for (let x = 0; x < W; x++) {
+      const l = L[x], r = R[x];
+      let n = 0;
+      if (l >= 0 && g[row + l] === 1) n++;
+      if (r >= 0 && g[row + r] === 1) n++;
+      if (u >= 0) {
+        if (g[ru + x] === 1) n++;
+        if (moore) {
+          if (l >= 0 && g[ru + l] === 1) n++;
+          if (r >= 0 && g[ru + r] === 1) n++;
+        }
+      }
+      if (d >= 0) {
+        if (g[rd + x] === 1) n++;
+        if (moore) {
+          if (l >= 0 && g[rd + l] === 1) n++;
+          if (r >= 0 && g[rd + r] === 1) n++;
+        }
+      }
+      const i = row + x, st = g[i];
+      if (st === 0) nx[i] = B[n] ? 1 : 0;
+      else if (st === 1) nx[i] = S[n] ? 1 : (C > 2 ? 2 : 0);
+      else nx[i] = st + 1 >= C ? 0 : st + 1;
+    }
+  }
+  grid = nx; next = g;
+  gen++;
+}
+
+function resizeBoard(nw, nh) {
+  nw = Math.max(8, Math.min(600, nw | 0)); nh = Math.max(8, Math.min(600, nh | 0));
+  const ng = new Uint8Array(nw * nh);
+  const ox = ((nw - W) / 2) | 0, oy = ((nh - H) / 2) | 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const tx = x + ox, ty = y + oy;
+    if (tx >= 0 && ty >= 0 && tx < nw && ty < nh) ng[ty * nw + tx] = grid[y * W + x];
+  }
+  W = nw; H = nh; grid = ng; next = new Uint8Array(W * H);
+  $("bw").value = W; $("bh").value = H;
+  buildNeighbours(); setupCanvas(); render();
+}
+
+function randomFill() {
+  const p = +$("density").value / 100;
+  for (let i = 0; i < grid.length; i++) grid[i] = Math.random() < p ? 1 : 0;
+  gen = 0; render();
+}
+function clearBoard() { grid.fill(0); gen = 0; render(); }
+
+// ---------- RLE ----------
+function parseRLE(text) {
+  let body = "", ruleStr = null;
+  for (const ln of text.split(/\r?\n/)) {
+    const t = ln.trim();
+    if (!t || t[0] === "#") continue;
+    if (/^x\s*=/i.test(t)) { const m = t.match(/rule\s*=\s*([^\s,]+)/i); if (m) ruleStr = m[1]; continue; }
+    body += t;
+  }
+  const cells = [];
+  let x = 0, y = 0, num = "", maxX = 0;
+  for (const ch of body) {
+    if (ch >= "0" && ch <= "9") { num += ch; continue; }
+    const n = num ? parseInt(num, 10) : 1; num = "";
+    if (ch === "b" || ch === ".") x += n;
+    else if (ch === "$") { y += n; x = 0; }
+    else if (ch === "!") break;
+    else if (/[a-zA-Z]/.test(ch)) { for (let k = 0; k < n; k++) cells.push([x + k, y]); x += n; }
+    else throw new Error(`Непонятный символ «${ch}» в RLE`);
+    if (x > maxX) maxX = x;
+  }
+  if (!cells.length) throw new Error("В узоре нет ни одной живой клетки");
+  return { cells, w: maxX, h: y + 1, rule: ruleStr };
+}
+
+function placePattern(p) {
+  if (p.w + 4 > W || p.h + 4 > H) resizeBoard(Math.max(W, p.w + 20), Math.max(H, p.h + 20));
+  grid.fill(0);
+  const ox = ((W - p.w) / 2) | 0, oy = ((H - p.h) / 2) | 0;
+  for (const [x, y] of p.cells) grid[(y + oy) * W + x + ox] = 1;
+  gen = 0; render();
+}
+
+// ---------- отрисовка ----------
+const canvas = $("board"), ctx = canvas.getContext("2d");
+const off = document.createElement("canvas"), offCtx = off.getContext("2d");
+let img, img32, cs = 4, palette = new Uint32Array(64), gridColor = "#000";
+
+function hexToRgb(h) {
+  h = h.trim().replace("#", "");
+  if (h.length === 3) h = h.split("").map(c => c + c).join("");
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function pack([r, g, b]) { return (255 << 24) | (b << 16) | (g << 8) | r; }
+
+function buildPalette() {
+  const cssv = getComputedStyle(document.documentElement);
+  const board = hexToRgb(cssv.getPropertyValue("--board"));
+  const cell = hexToRgb(cssv.getPropertyValue("--cell"));
+  const trail = hexToRgb(cssv.getPropertyValue("--trail"));
+  gridColor = cssv.getPropertyValue("--grid").trim();
+  palette[0] = pack(board); palette[1] = pack(cell);
+  const C = rule.c;
+  for (let s = 2; s < C; s++) {
+    // от яркого следа к цвету доски
+    const t = (s - 2) / Math.max(1, C - 2);
+    const k = 0.15 + 0.85 * t;
+    palette[s] = pack(trail.map((v, j) => Math.round(v + (board[j] - v) * k)));
+  }
+}
+
+function setupCanvas() {
+  const stage = $("stage");
+  const aw = stage.clientWidth - 22, ah = stage.clientHeight - 22;
+  cs = Math.max(1, Math.floor(Math.min(aw / W, ah / H)));
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = W * cs + "px"; canvas.style.height = H * cs + "px";
+  canvas.width = Math.round(W * cs * dpr); canvas.height = Math.round(H * cs * dpr);
+  off.width = W; off.height = H;
+  img = offCtx.createImageData(W, H);
+  img32 = new Uint32Array(img.data.buffer);
+}
+
+function render() {
+  for (let i = 0; i < grid.length; i++) img32[i] = palette[grid[i]];
+  offCtx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+  const px = canvas.width / W;
+  if (cs >= 6) {
+    ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 1; x < W; x++) { const p = Math.round(x * px) + 0.5; ctx.moveTo(p, 0); ctx.lineTo(p, canvas.height); }
+    for (let y = 1; y < H; y++) { const p = Math.round(y * px) + 0.5; ctx.moveTo(0, p); ctx.lineTo(canvas.width, p); }
+    ctx.stroke();
+  }
+  let pop = 0;
+  for (let i = 0; i < grid.length; i++) if (grid[i] === 1) pop++;
+  $("gen").textContent = gen.toLocaleString("ru-RU");
+  $("pop").textContent = pop.toLocaleString("ru-RU");
+}
+
+// ---------- рисование ----------
+let drawing = false, paintVal = 1, last = null;
+function cellAt(e) {
+  const r = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / (r.width / W));
+  const y = Math.floor((e.clientY - r.top) / (r.height / H));
+  return [Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y))];
+}
+function paintLine(x0, y0, x1, y1) {
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    grid[y0 * W + x0] = paintVal;
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+canvas.addEventListener("pointerdown", e => {
+  canvas.setPointerCapture(e.pointerId);
+  const [x, y] = cellAt(e);
+  paintVal = grid[y * W + x] === 1 ? 0 : 1;
+  drawing = true; last = [x, y];
+  paintLine(x, y, x, y); render();
+});
+canvas.addEventListener("pointermove", e => {
+  if (!drawing) return;
+  const [x, y] = cellAt(e);
+  paintLine(last[0], last[1], x, y); last = [x, y]; render();
+});
+const stopDraw = () => { drawing = false; };
+canvas.addEventListener("pointerup", stopDraw);
+canvas.addEventListener("pointercancel", stopDraw);
+
+// ---------- цикл ----------
+let acc = 0, prev = performance.now();
+function loop(now) {
+  const dt = Math.min(250, now - prev); prev = now;
+  if (running) {
+    acc += dt;
+    const period = 1000 / +$("speed").value;
+    let steps = 0;
+    while (acc >= period && steps < 8) { step(); acc -= period; steps++; }
+    if (steps === 8) acc = 0;
+    if (steps) render();
+  }
+  requestAnimationFrame(loop);
+}
+function setRunning(v) {
+  running = v; acc = 0;
+  $("play").textContent = running ? "Пауза" : "Пуск";
+}
+
+// ---------- элементы управления ----------
+for (const [name, r] of PRESETS) {
+  const b = document.createElement("button");
+  b.className = "chip"; b.textContent = name; b.dataset.rule = r; b.title = r;
+  b.addEventListener("click", () => { $("rule").value = r; applyRule(r); });
+  $("presets").appendChild(b);
+}
+for (const [name] of PATTERNS) {
+  const o = document.createElement("option"); o.textContent = name; $("pattern").appendChild(o);
+}
+
+$("rule").addEventListener("input", e => applyRule(e.target.value));
+$("hood").addEventListener("change", e => { moore = e.target.value === "moore"; buildNeighbours(); applyRule($("rule").value); });
+$("wrap").addEventListener("change", e => { wrap = e.target.checked; buildNeighbours(); });
+$("resize").addEventListener("click", () => resizeBoard(+$("bw").value, +$("bh").value));
+$("density").addEventListener("input", e => { $("densityOut").textContent = e.target.value + "%"; });
+$("random").addEventListener("click", randomFill);
+$("clear").addEventListener("click", clearBoard);
+$("speed").addEventListener("input", e => { $("speedOut").textContent = e.target.value + " пок/с"; });
+$("play").addEventListener("click", () => setRunning(!running));
+$("step").addEventListener("click", () => { setRunning(false); step(); render(); });
+$("place").addEventListener("click", () => {
+  const p = PATTERNS[$("pattern").selectedIndex];
+  placePattern(parseRLE(p[1]));
+});
+$("loadRle").addEventListener("click", () => {
+  const msg = $("rleMsg");
+  try {
+    const p = parseRLE($("rle").value);
+    let note = "";
+    if (p.rule) {
+      $("rule").value = p.rule;
+      note = applyRule(p.rule) ? ` Правило из файла: ${p.rule}.` : ` Правило «${p.rule}» не подошло, оставил прежнее.`;
+    }
+    placePattern(p);
+    msg.classList.remove("bad");
+    msg.textContent = `Загружено: ${p.w}×${p.h}, живых клеток ${p.cells.length}.${note}`;
+  } catch (e) {
+    msg.classList.add("bad"); msg.textContent = e.message;
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, textarea, select")) return;
+  if (e.code === "Space") { e.preventDefault(); setRunning(!running); }
+  else if (e.code === "ArrowRight") { e.preventDefault(); setRunning(false); step(); render(); }
+  else if (e.code === "KeyC") clearBoard();
+});
+
+new ResizeObserver(() => { setupCanvas(); render(); }).observe($("stage"));
+const refreshColors = () => { buildPalette(); render(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", refreshColors);
+new MutationObserver(refreshColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (document.fonts) document.fonts.ready.then(() => { setupCanvas(); render(); });
+
+// ---------- старт ----------
+buildNeighbours();
+setupCanvas();
+applyRule($("rule").value);
+randomFill();
+setRunning(!matchMedia("(prefers-reduced-motion: reduce)").matches);
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
